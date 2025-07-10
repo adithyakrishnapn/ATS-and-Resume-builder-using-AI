@@ -6,6 +6,9 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
+const userHelper = require('./helpers/userHelper');
+var db = require('./config/connection');
+const session = require('express-session');
 
 const app = express();
 const port = 3001;
@@ -16,17 +19,20 @@ app.use(cors());
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-require('dotenv').config();
+dotenv.config();
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
 async function getGeminiResponse(prompt) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  const text = response.text();
-  return text;
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text();
+  } catch (error) {
+    console.error("Error fetching AI response:", error);
+    return "Error processing the resume. Please try again.";
+  }
 }
 
 app.get('/', (req, res) => {
@@ -34,6 +40,10 @@ app.get('/', (req, res) => {
 });
 
 app.post('/upload', upload.single('resume'), async (req, res) => {
+  if (!req.file || !req.body.jd) {
+    return res.status(400).json({ error: "Missing resume file or job description" });
+  }
+
   const jd = req.body.jd;
   const resumePath = req.file.path;
 
@@ -42,41 +52,87 @@ app.post('/upload', upload.single('resume'), async (req, res) => {
     const pdfText = await pdfParse(dataBuffer);
 
     const inputPrompt = `
-   You are an experienced Application Tracking System (ATS) specializing in the technology field. Evaluate the following resume against the provided job description. Assign a percentage match and identify any missing keywords with high accuracy.
+      You are an ATS system for technical hiring. Analyze the resume and compare it to the job description. 
 
-Resume: ${pdfText.text}
-Job Description: ${jd}
+      **Resume Content:**
+      ${pdfText.text}
 
-Provide the response only its ats percentage:
-ATS Score: % /n
-AND AFTER TWO LINE GAP:/n/n/n   give a biggest white space
+      **Job Description:**
+      ${jd}
 
-GIVE MISSING KEYWORDS FROM THE RESUME /n/n/n
+      Now, perform the following:  
+      1. **List all matching keywords** (skills, technologies, tools).  
+      2. **List missing keywords** that should be added.  
+      3. **Calculate ATS Score (%)** based on keyword matching.  
+      4. **Give improvement suggestions** in bullet points (-1, -2).  
+      5. **Summarize the resume** in under 100 words.
 
-GIVE SOME SUGGESTIONS TO THE USER TO IMPROVE THE RESUME IN -1 -2 LIKE POINTS /n/n/n
-
-AND THEN AFTER 2 LINE GAP GIVE THE VERY SMALL SUMMARY OF THE RESUME/n/n/n
-
-(AND ALL WITH OUT AND SPECIAL CHARACTER APART FROM (" - , . ")ONLY/n/n
-
-AND VERY IMPORTANT :  NOT MORE THAN 100 WORDS..
-AND REMOVE UNNECESSARY TEXT PARAGRAPH OR MARKS , 
-IMPORTANT - USE WHITE SPACE AND NEXT LINE IN OUTPUT 
-
+      Important rules:
+      - **Strict keyword matching** for accurate ATS score.
+      - **No unnecessary sentences**; only structured output.
+      - **Format output cleanly with new lines for readability.**
+      - **No extra special characters apart from (",", ".", "-").**
     `;
 
     const response = await getGeminiResponse(inputPrompt);
     res.json({ response });
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Error processing resume:", error);
+    res.status(500).json({ error: "Failed to analyze resume" });
+
   } finally {
-    fs.unlinkSync(resumePath);
+    fs.unlink(resumePath, (err) => {
+      if (err) console.error("Error deleting file:", err);
+    });
   }
 });
 
+db.connect((err) => {
+  if (err) {
+    console.error("Database connection error:", err);
+  } else {
+    console.log("Connected to database");
+  }
+});
 
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'this12session#',
+  resave: false,
+  saveUninitialized: true,
+  cookie: {
+    maxAge: 600000,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production'
+  }
+}));
 
+app.post('/signup', async (req, res) => {
+  try {
+    const result = await userHelper.DoSignup(req.body);
+    res.status(201).json({ success: true, message: "Registration Successful", userId: result.InsertedId });
+  } catch (error) {
+    console.error("Signup error:", error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+app.post('/login', async (req, res) => {
+  try {
+    const response = await userHelper.DoLogIn(req.body);
+    if (response.status) {
+      req.session.loggedIn = true;
+      req.session.user = response.user;
+      res.json({ success: true, user: response.user });
+    } else {
+      res.json({ success: false, message: "Incorrect email or password" });
+    }
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+});
 
 app.listen(port, () => {
-  console.log(`Server is running at http://localhost:${port}`);
+  console.log(`Server running at http://localhost:${port}`);
 });

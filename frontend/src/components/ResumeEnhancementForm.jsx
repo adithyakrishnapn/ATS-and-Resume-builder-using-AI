@@ -39,7 +39,7 @@ function ResumeEnhancementForm({ history }) {
               <div className="content-1">
                 <h3>RESUME OPTIMIZATION</h3>
                 <h2>See your missing skills</h2>
-                <p>ResumeRankerX matches hard skills, soft skills, and keywords from the job listing to your resume. AI-powered system will show you how to tailor your resume so that you highlight the skills and experience recruiters are searching for.</p>
+                <p>Rezume matches hard skills, soft skills, and keywords from the job listing to your resume. AI-powered system will show you how to tailor your resume so that you highlight the skills and experience recruiters are searching for.</p>
               </div>
             </div>
       

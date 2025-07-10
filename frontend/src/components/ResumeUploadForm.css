@@ -36,25 +36,28 @@
     
   }
   
-  #answer{
-    justify-content: space-evenly;
+  #answer {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
     background-color: #fff;
-    border:1px solid black;
+    border: 1px solid black;
     border-radius: 20px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     width: 100%;
     max-width: 500px;
     height: 500px;
-    padding-left: 0.7rem;
-    padding-right: 0.7rem;
-    text-align:justify;
+    padding: 1rem;
+    text-align: justify;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+        sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-y: auto; /* Enables vertical scrolling */
+    word-wrap: break-word; /* Ensures long words do not overflow */
+}
 
-  }
 
   .upload-form h2 {
     margin-bottom: 1rem;
@@ -90,3 +93,14 @@
   .upload-form button:hover {
     background-color: #357ab7;
   }
+  .formatted-response {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    white-space: pre-line; /* Ensures new lines are respected */
+    font-family: "Arial", sans-serif;
+    font-size: 16px;
+    color: #333;
+    line-height: 1.5;
+  }
+  
